@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Construction Management Dashboard</title>
+
+    <link rel="stylesheet" href="style.css?v=2">
+
+</head>
+
+
+<body class="dashboard-page">
+
+
+<!-- ================= HEADER ================= -->
+
+<header>
+
+    <div class="brand">
+        CONSTRUCT<span>PRO</span>
+    </div>
+
+    <nav>
+
+        <a href="#dashboard">Dashboard</a>
+
+        <a href="#projects">Projects</a>
+
+        <a href="#feasibility">Feasibility</a>
+
+        <a href="#resources">Resources</a>
+
+    </nav>
+
+    <button class="logout"
+            onclick="logout()">
+
+        LOGOUT
+
+    </button>
+
+</header>
+
+
+
+<!-- ================= MAIN ================= -->
+
+<main>
+
+
+<!-- ================= DASHBOARD ================= -->
+
+<section id="dashboard"
+         class="dashboard-hero">
+
+    <div>
+
+        <p class="system-label">
+            CONSTRUCTION MANAGEMENT SYSTEM
+        </p>
+
+        <h1>
+            Construction<br>
+            Control Center.
+        </h1>
+
+        <p class="dashboard-description">
+
+            Monitor projects, workforce,
+            materials and construction
+            progress from a single dashboard.
+
+        </p>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================= STATISTICS ================= -->
+
+<section class="stats">
+
+    <div class="stat-card">
+
+        <span>ACTIVE PROJECTS</span>
+
+        <strong id="statActive">02</strong>
+
+    </div>
+
+
+    <div class="stat-card critical">
+
+        <span>ONGOING SITES</span>
+
+        <strong id="statSites">02</strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>TOTAL PROJECTS</span>
+
+        <strong id="statTotal">04</strong>
+
+    </div>
+
+
+    <div class="stat-card completed-card">
+
+        <span>COMPLETED</span>
+
+        <strong id="statCompleted">01</strong>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================= PROJECTS ================= -->
+
+<section id="projects"
+         class="data-section">
+
+    <div class="section-header">
+
+        <div>
+
+            <p class="system-label">
+                PROJECT DATABASE
+            </p>
+
+            <h2>
+                Construction Projects
+            </h2>
+
+        </div>
+
+
+        <div class="actions">
+
+            <button onclick="insertProject()">
+                INSERT
+            </button>
+
+            <button onclick="updateProject()">
+                UPDATE
+            </button>
+
+            <button onclick="deleteProject()">
+                DELETE
+            </button>
+
+            <button onclick="refreshProjects()">
+                REFRESH
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="table-container">
+
+        <table id="projectTable">
+
+            <thead>
+
+                <tr>
+
+                    <th>PROJECT ID</th>
+
+                    <th>PROJECT NAME</th>
+
+                    <th>LOCATION</th>
+
+                    <th>MANAGER</th>
+
+                    <th>PROGRESS</th>
+
+                    <th>STATUS</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="projectTableBody">
+
+                <tr>
+
+                    <td>P001</td>
+
+                    <td>Academic Block</td>
+
+                    <td>Chennai</td>
+
+                    <td>R. Kumar</td>
+
+                    <td>78%</td>
+
+                    <td>
+                        <span class="status active">
+                            ACTIVE
+                        </span>
+                    </td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>P002</td>
+
+                    <td>Hostel Complex</td>
+
+                    <td>Chennai</td>
+
+                    <td>S. Arun</td>
+
+                    <td>62%</td>
+
+                    <td>
+                        <span class="status active">
+                            ACTIVE
+                        </span>
+                    </td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>P003</td>
+
+                    <td>Central Library</td>
+
+                    <td>Vellore</td>
+
+                    <td>A. Prakash</td>
+
+                    <td>100%</td>
+
+                    <td>
+                        <span class="status completed">
+                            COMPLETED
+                        </span>
+                    </td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>P004</td>
+
+                    <td>Research Centre</td>
+
+                    <td>Chennai</td>
+
+                    <td>V. Raj</td>
+
+                    <td>35%</td>
+
+                    <td>
+                        <span class="status planning">
+                            PLANNING
+                        </span>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================= SCHEDULE & HEALTH EVALUATOR ================= -->
+
+<section id="feasibility"
+         class="data-section">
+
+    <div class="section-header">
+
+        <div>
+
+            <p class="system-label">
+                SCHEDULE & COMPLETION EVALUATOR
+            </p>
+
+            <h2>
+                Project Health & Pace Analysis
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="estimator-container">
+
+        <!-- Input Form -->
+        <div class="estimator-card input-card">
+
+            <h3>Project Evaluation Inputs</h3>
+
+            <p class="card-desc">
+                Select a project from your database and evaluate schedule health based on progress and elapsed days.
+            </p>
+
+            <div class="form-grid">
+
+                <div class="form-group full-width">
+                    <label>SELECT PROJECT</label>
+                    <select id="evalSelectProject" onchange="onProjectSelectChanged()">
+                        <option value="P001">P001 - Academic Block</option>
+                        <option value="P002">P002 - Hostel Complex</option>
+                        <option value="P003">P003 - Central Library</option>
+                        <option value="P004">P004 - Research Centre</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>CURRENT PROGRESS (%)</label>
+                    <input type="number" id="evalProgress" value="80" min="0" max="100" placeholder="0 - 100">
+                </div>
+
+                <div class="form-group">
+                    <label>DAYS ELAPSED</label>
+                    <input type="number" id="evalDaysElapsed" value="90" min="1" placeholder="e.g. 90">
+                </div>
+
+                <div class="form-group full-width">
+                    <label>TARGET TIMELINE (PLANNED DAYS)</label>
+                    <input type="number" id="evalTargetDays" value="120" min="1" placeholder="e.g. 120">
+                </div>
+
+            </div>
+
+            <div class="estimator-actions">
+                <button type="button" class="btn-calc" onclick="evaluateProjectSchedule(false)">
+                    EVALUATE PACE
+                </button>
+                <button type="button" class="btn-save" onclick="evaluateProjectSchedule(true)">
+                    UPDATE IN DATABASE
+                </button>
+            </div>
+
+        </div>
+
+
+        <!-- Output Result Card -->
+        <div class="estimator-card output-card">
+
+            <div class="output-top">
+                <h3 id="outProjectTitle">Academic Block (P001)</h3>
+                <span id="healthBadge" class="status active">ON TRACK</span>
+            </div>
+
+            <p class="card-desc" id="outRecommendation">
+                Velocity is healthy. Project on schedule to finish on time.
+            </p>
+
+            <div class="output-stats-grid">
+
+                <div class="out-item">
+                    <span>REMAINING WORK</span>
+                    <strong id="outRemaining">20%</strong>
+                </div>
+
+                <div class="out-item">
+                    <span>SCHEDULE VARIANCE</span>
+                    <strong id="outPaceVariance" style="color: #2ecc71;">7 Days Ahead</strong>
+                </div>
+
+                <div class="out-item">
+                    <span>PROJECTED COMPLETION</span>
+                    <strong id="outProjectedDays">113 Days Total</strong>
+                </div>
+
+                <div class="out-item">
+                    <span>LOCATION & MANAGER</span>
+                    <strong id="outSiteInfo">Chennai (R. Kumar)</strong>
+                </div>
+
+                <div class="out-item">
+                    <span>CALCULATED STATUS</span>
+                    <strong id="outNewStatus">ACTIVE</strong>
+                </div>
+
+                <div class="out-item">
+                    <span>DATABASE SYNC</span>
+                    <strong id="outDbSync">Synced (P001)</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================= RESOURCES ================= -->
+
+<section id="resources"
+         class="data-section">
+
+    <div class="section-header">
+
+        <div>
+
+            <p class="system-label">
+                RESOURCE MANAGEMENT
+            </p>
+
+            <h2>
+                Site Resources
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="resource-grid">
+
+
+        <div class="resource-card">
+
+            <span>MATERIALS</span>
+
+            <h3>Steel & Cement</h3>
+
+            <p>
+                Monitor construction material
+                availability and usage.
+            </p>
+
+        </div>
+
+
+        <div class="resource-card">
+
+            <span>WORKFORCE</span>
+
+            <h3>128 Workers</h3>
+
+            <p>
+                Track workforce allocation
+                across construction sites.
+            </p>
+
+        </div>
+
+
+        <div class="resource-card">
+
+            <span>PROGRESS</span>
+
+            <h3 id="statAvgProgress">--% Average</h3>
+
+            <p>
+                Monitor overall construction
+                progress across projects.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+</main>
+
+
+
+<footer>
+
+    CONSTRUCTPRO
+
+    <span>
+        Construction Management System
+    </span>
+
+</footer>
+
+
+<script src="script.js?v=4"></script>
+
+</body>
+
+</html>
