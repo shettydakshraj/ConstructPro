@@ -67,7 +67,114 @@ function logout() {
 }
 
 
-// ================= REFRESH =================
+// ================= REFRESH & SEARCH =================
+
+let currentSearchQuery = "";
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function handleProjectSearch(val) {
+    currentSearchQuery = (val || "").trim().toLowerCase();
+    const clearBtn = document.getElementById("projectSearchClear");
+    if (clearBtn) {
+        clearBtn.style.display = (val && val.length > 0) ? "flex" : "none";
+    }
+    renderProjectsTable();
+}
+
+function clearProjectSearch() {
+    const input = document.getElementById("projectSearchInput");
+    if (input) {
+        input.value = "";
+        input.focus();
+    }
+    currentSearchQuery = "";
+    const clearBtn = document.getElementById("projectSearchClear");
+    if (clearBtn) {
+        clearBtn.style.display = "none";
+    }
+    renderProjectsTable();
+}
+
+function renderProjectsTable() {
+    const table = document.getElementById("projectTableBody");
+    if (!table) return;
+
+    const all = Array.isArray(window.allProjects) ? window.allProjects : [];
+    const query = currentSearchQuery;
+
+    const filtered = query
+        ? all.filter(p => {
+            const id = String(p.id || "").toLowerCase();
+            const name = String(p.name || "").toLowerCase();
+            const loc = String(p.location || "").toLowerCase();
+            const mgr = String(p.manager || "").toLowerCase();
+            const prog = String(p.progress !== undefined ? p.progress : "");
+            const progPct = `${prog}%`.toLowerCase();
+            const stat = String(p.status || "").toLowerCase();
+
+            return id.includes(query) ||
+                   name.includes(query) ||
+                   loc.includes(query) ||
+                   mgr.includes(query) ||
+                   prog.includes(query) ||
+                   progPct.includes(query) ||
+                   stat.includes(query);
+        })
+        : all;
+
+    const countEl = document.getElementById("projectSearchCount");
+    if (countEl) {
+        if (!query) {
+            countEl.textContent = `Showing all ${all.length} projects`;
+        } else {
+            countEl.textContent = `Showing ${filtered.length} of ${all.length} projects`;
+        }
+    }
+
+    if (filtered.length === 0) {
+        const rawInput = document.getElementById("projectSearchInput")?.value || "";
+        table.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-search-state">
+                    <h4>No projects found</h4>
+                    <p>No project matches your search "${escapeHtml(rawInput)}".</p>
+                    <button type="button" onclick="clearProjectSearch()">Clear Search</button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let rowsHtml = "";
+    filtered.forEach(project => {
+        const statusClass = (project.status || "").toLowerCase();
+        rowsHtml += `
+            <tr>
+                <td>${escapeHtml(project.id)}</td>
+                <td>${escapeHtml(project.name)}</td>
+                <td>${escapeHtml(project.location)}</td>
+                <td>${escapeHtml(project.manager)}</td>
+                <td>${escapeHtml(project.progress)}%</td>
+                <td>
+                    <span class="status ${escapeHtml(statusClass)}">
+                        ${escapeHtml(project.status)}
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+
+    table.innerHTML = rowsHtml;
+}
 
 function refreshProjects() {
 
@@ -86,41 +193,8 @@ function refreshProjects() {
                 throw new Error("Invalid response format: expected array");
             }
 
-            const table =
-                document.getElementById("projectTableBody");
-
-            if (!table) return;
-
-            table.innerHTML = "";
-
-            projects.forEach(project => {
-
-                table.innerHTML += `
-
-                    <tr>
-
-                        <td>${project.id}</td>
-
-                        <td>${project.name}</td>
-
-                        <td>${project.location}</td>
-
-                        <td>${project.manager}</td>
-
-                        <td>${project.progress}%</td>
-
-                        <td>
-                            <span class="status ${project.status.toLowerCase()}">
-                                ${project.status}
-                            </span>
-                        </td>
-
-                    </tr>
-
-                `;
-            });
-
             window.allProjects = projects;
+            renderProjectsTable();
             populateProjectDropdown(projects);
             updateStats(projects);
 
