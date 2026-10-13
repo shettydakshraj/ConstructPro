@@ -58,11 +58,19 @@ public class Main {
             }
         } else {
             Class.forName("oracle.jdbc.OracleDriver");
-            return DriverManager.getConnection(
-                "jdbc:oracle:thin:@localhost:1521:XE",
-                "system",
-                "1"
-            );
+            String oracleUrl = System.getenv("ORACLE_URL");
+            if (oracleUrl == null || oracleUrl.trim().isEmpty()) {
+                oracleUrl = "jdbc:oracle:thin:@localhost:1521:XE";
+            }
+            String oracleUser = System.getenv("ORACLE_USER");
+            if (oracleUser == null || oracleUser.trim().isEmpty()) {
+                oracleUser = "system";
+            }
+            String oraclePass = System.getenv("ORACLE_PASSWORD");
+            if (oraclePass == null || oraclePass.trim().isEmpty()) {
+                oraclePass = "1";
+            }
+            return DriverManager.getConnection(oracleUrl, oracleUser, oraclePass);
         }
     }
 

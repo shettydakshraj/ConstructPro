@@ -1,12 +1,20 @@
+# Environment & secrets
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+backend/db.properties
+*.properties
+!*.properties.example
+
+# Build outputs & class files
 *.class
 target/
 node_modules/
 dist/
 build/
 *.log
+
+# Heavy or local JAR dependencies
 backend/ojdbc6.jar
-*.properties
-!*.properties.example

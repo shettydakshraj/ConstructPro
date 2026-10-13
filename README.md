@@ -38,7 +38,7 @@ A full-stack Construction Management and Site Analytics application developed fo
    - **Dockerfile Path**: `Dockerfile` *(Default)*
 4. Under **Environment Variables**, add:
    - **KEY**: `DATABASE_URL`
-   - **VALUE**: `postgresql://neondb_owner:npg_GH3JM7nagPYo@ep-curly-dust-b4vwh9uo-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require`
+   - **VALUE**: `postgresql://<username>:<password>@<neon-hostname>/<database>?sslmode=require` *(Paste your Neon connection string from Neon dashboard)*
 5. Click **Create Web Service**.
 6. Render will automatically build the container and provide your live URL (e.g., `https://constructpro.onrender.com`).
 
