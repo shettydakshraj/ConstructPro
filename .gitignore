@@ -8,3 +8,5 @@ dist/
 build/
 *.log
 backend/ojdbc6.jar
+*.properties
+!*.properties.example

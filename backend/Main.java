@@ -3,6 +3,7 @@ import com.sun.net.httpserver.*;
 import java.net.*;
 import java.io.*;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 public class Main {
 
@@ -12,37 +13,134 @@ public class Main {
 
         try {
 
-            Class.forName("oracle.jdbc.OracleDriver");
+            String dbUrl = (args.length > 0 && args[0] != null && !args[0].trim().isEmpty())
+                ? args[0].trim()
+                : System.getenv("DATABASE_URL");
 
-            con = DriverManager.getConnection(
-                "jdbc:oracle:thin:@localhost:1521:XE",
-                "system",
-                "1"
-            );
+            if (dbUrl == null || dbUrl.trim().isEmpty()) {
+                File propFile = new File("db.properties");
+                if (!propFile.exists()) propFile = new File("backend/db.properties");
+                if (propFile.exists()) {
+                    Properties props = new Properties();
+                    try (FileInputStream fis = new FileInputStream(propFile)) {
+                        props.load(fis);
+                        dbUrl = props.getProperty("DATABASE_URL");
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            if (dbUrl != null && !dbUrl.trim().isEmpty()) {
+                System.out.println("Connecting to Cloud Database...");
+                if (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://")) {
+                    URI uri = new URI(dbUrl.replace("postgres://", "http://").replace("postgresql://", "http://"));
+                    String userInfo = uri.getUserInfo();
+                    String user = null;
+                    String pass = null;
+                    if (userInfo != null && userInfo.contains(":")) {
+                        String[] parts = userInfo.split(":", 2);
+                        user = parts[0];
+                        pass = parts[1];
+                    }
+                    String host = uri.getHost();
+                    int port = uri.getPort() == -1 ? 5432 : uri.getPort();
+                    String path = uri.getPath();
+                    String query = uri.getQuery();
+                    String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + path + (query != null ? "?" + query : "?sslmode=require");
+                    Class.forName("org.postgresql.Driver");
+                    if (user != null && pass != null) {
+                        con = DriverManager.getConnection(jdbcUrl, user, pass);
+                    } else {
+                        con = DriverManager.getConnection(jdbcUrl);
+                    }
+                } else if (dbUrl.startsWith("jdbc:postgresql:")) {
+                    Class.forName("org.postgresql.Driver");
+                    con = DriverManager.getConnection(dbUrl);
+                } else {
+                    con = DriverManager.getConnection(dbUrl);
+                }
+            } else {
+                System.out.println("No DATABASE_URL supplied, falling back to local Oracle...");
+                Class.forName("oracle.jdbc.OracleDriver");
+                con = DriverManager.getConnection(
+                    "jdbc:oracle:thin:@localhost:1521:XE",
+                    "system",
+                    "1"
+                );
+            }
 
             System.out.println("DATABASE CONNECTED SUCCESSFULLY!");
 
+            boolean isPostgres = false;
+            try {
+                isPostgres = con.getMetaData().getDatabaseProductName().toLowerCase().contains("postgres");
+            } catch (Exception ignored) {}
+
             try (Statement initStmt = con.createStatement()) {
-                initStmt.execute("CREATE TABLE PROJECT_ESTIMATIONS (" +
-                    "EST_ID VARCHAR2(20) PRIMARY KEY, " +
-                    "PROJECT_NAME VARCHAR2(100) NOT NULL, " +
-                    "PROJECT_TYPE VARCHAR2(30) NOT NULL, " +
-                    "QUALITY_GRADE VARCHAR2(20) NOT NULL, " +
-                    "AREA_SQFT NUMBER(10,2) NOT NULL, " +
-                    "ALLOCATED_BUDGET NUMBER(14,2) NOT NULL, " +
-                    "ESTIMATED_COST NUMBER(14,2) NOT NULL, " +
-                    "REQUIRED_WORKERS NUMBER(5), " +
-                    "STEEL_TONS NUMBER(8,2), " +
-                    "CEMENT_BAGS NUMBER(8), " +
-                    "FEASIBILITY_STATUS VARCHAR2(20), " +
-                    "CREATED_AT DATE DEFAULT SYSDATE)");
-                System.out.println("PROJECT_ESTIMATIONS TABLE CREATED!");
+                if (isPostgres) {
+                    initStmt.execute("CREATE TABLE IF NOT EXISTS PROJECTS (" +
+                        "PROJECT_ID VARCHAR(10) PRIMARY KEY, " +
+                        "PROJECT_NAME VARCHAR(100) NOT NULL, " +
+                        "LOCATION VARCHAR(50) NOT NULL, " +
+                        "MANAGER VARCHAR(50) NOT NULL, " +
+                        "PROGRESS INT CHECK (PROGRESS BETWEEN 0 AND 100), " +
+                        "STATUS VARCHAR(20) CHECK (STATUS IN ('ACTIVE', 'COMPLETED', 'PLANNING')))");
+
+                    initStmt.execute("CREATE TABLE IF NOT EXISTS PROJECT_ESTIMATIONS (" +
+                        "EST_ID VARCHAR(20) PRIMARY KEY, " +
+                        "PROJECT_NAME VARCHAR(100) NOT NULL, " +
+                        "PROJECT_TYPE VARCHAR(30) NOT NULL, " +
+                        "QUALITY_GRADE VARCHAR(20) NOT NULL, " +
+                        "AREA_SQFT NUMERIC(10,2) NOT NULL, " +
+                        "ALLOCATED_BUDGET NUMERIC(14,2) NOT NULL, " +
+                        "ESTIMATED_COST NUMERIC(14,2) NOT NULL, " +
+                        "REQUIRED_WORKERS INT, " +
+                        "STEEL_TONS NUMERIC(8,2), " +
+                        "CEMENT_BAGS INT, " +
+                        "FEASIBILITY_STATUS VARCHAR(20), " +
+                        "CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    ResultSet rsCount = initStmt.executeQuery("SELECT COUNT(*) FROM PROJECTS");
+                    if (rsCount.next() && rsCount.getInt(1) == 0) {
+                        initStmt.execute("INSERT INTO PROJECTS VALUES " +
+                            "('P001', 'Academic Block', 'Chennai', 'R. Kumar', 80, 'ACTIVE'), " +
+                            "('P002', 'Hostel Complex', 'Chennai', 'S. Arun', 62, 'ACTIVE'), " +
+                            "('P003', 'Central Library', 'Vellore', 'A. Prakash', 100, 'COMPLETED'), " +
+                            "('P004', 'Research Centre', 'Chennai', 'V. Raj', 35, 'PLANNING')");
+                        System.out.println("POSTGRESQL SEED DATA AUTO-INSERTED (4 projects)!");
+                    }
+                    rsCount.close();
+                    System.out.println("POSTGRES TABLES VERIFIED & READY!");
+                } else {
+                    try {
+                        initStmt.execute("CREATE TABLE PROJECT_ESTIMATIONS (" +
+                            "EST_ID VARCHAR2(20) PRIMARY KEY, " +
+                            "PROJECT_NAME VARCHAR2(100) NOT NULL, " +
+                            "PROJECT_TYPE VARCHAR2(30) NOT NULL, " +
+                            "QUALITY_GRADE VARCHAR2(20) NOT NULL, " +
+                            "AREA_SQFT NUMBER(10,2) NOT NULL, " +
+                            "ALLOCATED_BUDGET NUMBER(14,2) NOT NULL, " +
+                            "ESTIMATED_COST NUMBER(14,2) NOT NULL, " +
+                            "REQUIRED_WORKERS NUMBER(5), " +
+                            "STEEL_TONS NUMBER(8,2), " +
+                            "CEMENT_BAGS NUMBER(8), " +
+                            "FEASIBILITY_STATUS VARCHAR2(20), " +
+                            "CREATED_AT DATE DEFAULT SYSDATE)");
+                        System.out.println("PROJECT_ESTIMATIONS TABLE CREATED!");
+                    } catch (SQLException sqle) {
+                        // Table already exists
+                    }
+                }
             } catch (SQLException sqle) {
-                // Table already exists
+                System.err.println("Database init note: " + sqle.getMessage());
             }
 
-            HttpServer server =
-                HttpServer.create(new InetSocketAddress(8081), 0);
+            int listenPort = 8081;
+            String portEnv = System.getenv("PORT");
+            if (portEnv != null && !portEnv.trim().isEmpty()) {
+                try { listenPort = Integer.parseInt(portEnv.trim()); } catch (Exception ignored) {}
+            }
+
+            HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", listenPort), 0);
 
             server.createContext("/projects", Main::getProjects);
             server.createContext("/insert", Main::insertProject);
@@ -54,7 +152,7 @@ public class Main {
 
             server.start();
 
-            System.out.println("SERVER RUNNING AT http://localhost:8081");
+            System.out.println("SERVER RUNNING AT http://localhost:" + listenPort);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -67,6 +165,8 @@ public class Main {
     static void getProjects(HttpExchange exchange) {
 
         try {
+
+            if (handleCors(exchange)) return;
 
             Statement stmt = con.createStatement();
 
@@ -130,6 +230,8 @@ public class Main {
 
         try {
 
+            if (handleCors(exchange)) return;
+
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
 
@@ -164,6 +266,8 @@ public class Main {
     static void updateProject(HttpExchange exchange) {
 
         try {
+
+            if (handleCors(exchange)) return;
 
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
@@ -203,6 +307,8 @@ public class Main {
 
         try {
 
+            if (handleCors(exchange)) return;
+
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
 
@@ -234,6 +340,7 @@ public class Main {
 
     static void evaluateProject(HttpExchange exchange) {
         try {
+            if (handleCors(exchange)) return;
             Map<String, String> p = getParams(exchange.getRequestURI().getQuery());
             String id = p.getOrDefault("id", "").trim();
             int currentProgress = Integer.parseInt(p.getOrDefault("progress", "0"));
@@ -340,6 +447,7 @@ public class Main {
 
     static void processEstimation(HttpExchange exchange) {
         try {
+            if (handleCors(exchange)) return;
             Map<String, String> p = getParams(exchange.getRequestURI().getQuery());
             String name = p.getOrDefault("name", "New Project");
             String type = p.getOrDefault("type", "Residential");
@@ -411,6 +519,7 @@ public class Main {
 
     static void getEstimations(HttpExchange exchange) {
         try {
+            if (handleCors(exchange)) return;
             Statement stmt = con.createStatement();
             ResultSet rs = stmt.executeQuery("SELECT * FROM PROJECT_ESTIMATIONS ORDER BY CREATED_AT DESC");
             StringBuilder json = new StringBuilder("[");
@@ -480,7 +589,19 @@ public class Main {
     }
 
 
-    // ================= RESPONSE =================
+    // ================= RESPONSE & CORS =================
+
+    static boolean handleCors(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization, *");
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+            return true;
+        }
+        return false;
+    }
 
     static void send(
         HttpExchange exchange,
@@ -491,12 +612,18 @@ public class Main {
         try {
 
             exchange.getResponseHeaders()
-                .set("Content-Type", "application/json");
+                .set("Content-Type", "application/json; charset=UTF-8");
 
             exchange.getResponseHeaders()
                 .set("Access-Control-Allow-Origin", "*");
 
-            byte[] data = response.getBytes();
+            exchange.getResponseHeaders()
+                .set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
+            exchange.getResponseHeaders()
+                .set("Access-Control-Allow-Headers", "Content-Type, Authorization, *");
+
+            byte[] data = response.getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(
                 code,

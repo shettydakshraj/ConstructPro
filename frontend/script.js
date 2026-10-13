@@ -1,3 +1,28 @@
+// ================= CONFIGURATION =================
+// Configurable Render backend URL for production deployment.
+// Can also be overridden at runtime via localStorage or window.API_BASE.
+const DEPLOYED_RENDER_BACKEND = "https://constructpro.onrender.com";
+
+const API_BASE = (
+    window.API_BASE ||
+    localStorage.getItem("CONSTRUCTPRO_API_URL") ||
+    (window.location.protocol === "file:" ||
+     window.location.hostname === "localhost" ||
+     window.location.hostname === "127.0.0.1"
+        ? "http://localhost:8081"
+        : DEPLOYED_RENDER_BACKEND)
+).replace(/\/$/, "");
+
+// Helper function to update backend URL in browser if needed
+window.setBackendUrl = function(url) {
+    if (url) {
+        localStorage.setItem("CONSTRUCTPRO_API_URL", url.trim().replace(/\/$/, ""));
+        alert("Backend URL updated to: " + url + "\nReloading page...");
+        window.location.reload();
+    }
+};
+
+
 function login(event) {
 
     event.preventDefault();
@@ -40,7 +65,7 @@ function logout() {
 
 function refreshProjects() {
 
-    fetch("http://localhost:8081/projects")
+    fetch(`${API_BASE}/projects`)
 
         .then(response => response.json())
 
@@ -171,7 +196,7 @@ function insertProject() {
 
 
     const url =
-        `http://localhost:8081/insert?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}&manager=${encodeURIComponent(manager)}&progress=${encodeURIComponent(progress)}&status=${encodeURIComponent(status)}`;
+        `${API_BASE}/insert?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}&manager=${encodeURIComponent(manager)}&progress=${encodeURIComponent(progress)}&status=${encodeURIComponent(status)}`;
 
 
     fetch(url)
@@ -232,7 +257,7 @@ function updateProject() {
 
 
     const url =
-        `http://localhost:8081/update?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}&manager=${encodeURIComponent(manager)}&progress=${encodeURIComponent(progress)}&status=${encodeURIComponent(status)}`;
+        `${API_BASE}/update?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}&manager=${encodeURIComponent(manager)}&progress=${encodeURIComponent(progress)}&status=${encodeURIComponent(status)}`;
 
 
     fetch(url)
@@ -273,7 +298,7 @@ function deleteProject() {
 
 
     fetch(
-        `http://localhost:8081/delete?id=${encodeURIComponent(id)}`
+        `${API_BASE}/delete?id=${encodeURIComponent(id)}`
     )
 
         .then(response => response.text())
@@ -332,7 +357,7 @@ function evaluateProjectSchedule(autoUpdate) {
     const daysElapsed = parseInt(document.getElementById("evalDaysElapsed").value) || 30;
     const targetDays = parseInt(document.getElementById("evalTargetDays").value) || 90;
 
-    const url = `http://localhost:8081/evaluate?id=${encodeURIComponent(id)}&progress=${encodeURIComponent(progress)}&daysElapsed=${encodeURIComponent(daysElapsed)}&targetDays=${encodeURIComponent(targetDays)}&autoUpdate=${autoUpdate ? "true" : "false"}`;
+    const url = `${API_BASE}/evaluate?id=${encodeURIComponent(id)}&progress=${encodeURIComponent(progress)}&daysElapsed=${encodeURIComponent(daysElapsed)}&targetDays=${encodeURIComponent(targetDays)}&autoUpdate=${autoUpdate ? "true" : "false"}`;
 
     fetch(url)
         .then(response => response.json())
