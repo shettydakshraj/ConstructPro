@@ -8,6 +8,63 @@ import java.nio.charset.StandardCharsets;
 public class Main {
 
     static Connection con;
+    static String activeDbUrl;
+
+    static synchronized Connection getConnection() {
+        try {
+            if (con != null && !con.isClosed() && con.isValid(2)) {
+                return con;
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (con != null) {
+                try { con.close(); } catch (Exception ignored) {}
+            }
+            con = connectToDatabase(activeDbUrl);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return con;
+    }
+
+    static Connection connectToDatabase(String dbUrl) throws Exception {
+        if (dbUrl != null && !dbUrl.trim().isEmpty()) {
+            if (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://")) {
+                URI uri = new URI(dbUrl.replace("postgres://", "http://").replace("postgresql://", "http://"));
+                String userInfo = uri.getUserInfo();
+                String user = null;
+                String pass = null;
+                if (userInfo != null && userInfo.contains(":")) {
+                    String[] parts = userInfo.split(":", 2);
+                    user = parts[0];
+                    pass = parts[1];
+                }
+                String host = uri.getHost();
+                int port = uri.getPort() == -1 ? 5432 : uri.getPort();
+                String path = uri.getPath();
+                String query = uri.getQuery();
+                String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + path + (query != null ? "?" + query : "?sslmode=require");
+                Class.forName("org.postgresql.Driver");
+                if (user != null && pass != null) {
+                    return DriverManager.getConnection(jdbcUrl, user, pass);
+                } else {
+                    return DriverManager.getConnection(jdbcUrl);
+                }
+            } else if (dbUrl.startsWith("jdbc:postgresql:")) {
+                Class.forName("org.postgresql.Driver");
+                return DriverManager.getConnection(dbUrl);
+            } else {
+                return DriverManager.getConnection(dbUrl);
+            }
+        } else {
+            Class.forName("oracle.jdbc.OracleDriver");
+            return DriverManager.getConnection(
+                "jdbc:oracle:thin:@localhost:1521:XE",
+                "system",
+                "1"
+            );
+        }
+    }
 
     public static void main(String[] args) {
 
@@ -29,44 +86,14 @@ public class Main {
                 }
             }
 
+            activeDbUrl = dbUrl;
             if (dbUrl != null && !dbUrl.trim().isEmpty()) {
                 System.out.println("Connecting to Cloud Database...");
-                if (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://")) {
-                    URI uri = new URI(dbUrl.replace("postgres://", "http://").replace("postgresql://", "http://"));
-                    String userInfo = uri.getUserInfo();
-                    String user = null;
-                    String pass = null;
-                    if (userInfo != null && userInfo.contains(":")) {
-                        String[] parts = userInfo.split(":", 2);
-                        user = parts[0];
-                        pass = parts[1];
-                    }
-                    String host = uri.getHost();
-                    int port = uri.getPort() == -1 ? 5432 : uri.getPort();
-                    String path = uri.getPath();
-                    String query = uri.getQuery();
-                    String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + path + (query != null ? "?" + query : "?sslmode=require");
-                    Class.forName("org.postgresql.Driver");
-                    if (user != null && pass != null) {
-                        con = DriverManager.getConnection(jdbcUrl, user, pass);
-                    } else {
-                        con = DriverManager.getConnection(jdbcUrl);
-                    }
-                } else if (dbUrl.startsWith("jdbc:postgresql:")) {
-                    Class.forName("org.postgresql.Driver");
-                    con = DriverManager.getConnection(dbUrl);
-                } else {
-                    con = DriverManager.getConnection(dbUrl);
-                }
             } else {
                 System.out.println("No DATABASE_URL supplied, falling back to local Oracle...");
-                Class.forName("oracle.jdbc.OracleDriver");
-                con = DriverManager.getConnection(
-                    "jdbc:oracle:thin:@localhost:1521:XE",
-                    "system",
-                    "1"
-                );
             }
+
+            con = connectToDatabase(activeDbUrl);
 
             System.out.println("DATABASE CONNECTED SUCCESSFULLY!");
 
@@ -168,7 +195,7 @@ public class Main {
 
             if (handleCors(exchange)) return;
 
-            Statement stmt = con.createStatement();
+            Statement stmt = getConnection().createStatement();
 
             ResultSet rs = stmt.executeQuery(
                 "SELECT * FROM PROJECTS"
@@ -235,7 +262,7 @@ public class Main {
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
 
-            PreparedStatement stmt = con.prepareStatement(
+            PreparedStatement stmt = getConnection().prepareStatement(
                 "INSERT INTO PROJECTS VALUES (?, ?, ?, ?, ?, ?)"
             );
 
@@ -272,7 +299,7 @@ public class Main {
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
 
-            PreparedStatement stmt = con.prepareStatement(
+            PreparedStatement stmt = getConnection().prepareStatement(
                 "UPDATE PROJECTS SET PROJECT_NAME=?, LOCATION=?, MANAGER=?, PROGRESS=?, STATUS=? WHERE PROJECT_ID=?"
             );
 
@@ -312,7 +339,7 @@ public class Main {
             Map<String, String> p =
                 getParams(exchange.getRequestURI().getQuery());
 
-            PreparedStatement stmt = con.prepareStatement(
+            PreparedStatement stmt = getConnection().prepareStatement(
                 "DELETE FROM PROJECTS WHERE PROJECT_ID=?"
             );
 
@@ -351,7 +378,7 @@ public class Main {
             if (currentProgress < 0) currentProgress = 0;
             if (currentProgress > 100) currentProgress = 100;
 
-            PreparedStatement pstmt = con.prepareStatement(
+            PreparedStatement pstmt = getConnection().prepareStatement(
                 "SELECT PROJECT_NAME, LOCATION, MANAGER FROM PROJECTS WHERE PROJECT_ID = ?"
             );
             pstmt.setString(1, id);
@@ -406,7 +433,7 @@ public class Main {
             }
 
             if (autoUpdate) {
-                PreparedStatement updateStmt = con.prepareStatement(
+                PreparedStatement updateStmt = getConnection().prepareStatement(
                     "UPDATE PROJECTS SET PROGRESS = ?, STATUS = ? WHERE PROJECT_ID = ?"
                 );
                 updateStmt.setInt(1, currentProgress);
@@ -474,7 +501,7 @@ public class Main {
             String estId = "EST" + (System.currentTimeMillis() % 1000000);
 
             if (save) {
-                PreparedStatement stmt = con.prepareStatement(
+                PreparedStatement stmt = getConnection().prepareStatement(
                     "INSERT INTO PROJECT_ESTIMATIONS (EST_ID, PROJECT_NAME, PROJECT_TYPE, QUALITY_GRADE, AREA_SQFT, ALLOCATED_BUDGET, ESTIMATED_COST, REQUIRED_WORKERS, STEEL_TONS, CEMENT_BAGS, FEASIBILITY_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 );
                 stmt.setString(1, estId);
@@ -520,7 +547,7 @@ public class Main {
     static void getEstimations(HttpExchange exchange) {
         try {
             if (handleCors(exchange)) return;
-            Statement stmt = con.createStatement();
+            Statement stmt = getConnection().createStatement();
             ResultSet rs = stmt.executeQuery("SELECT * FROM PROJECT_ESTIMATIONS ORDER BY CREATED_AT DESC");
             StringBuilder json = new StringBuilder("[");
 

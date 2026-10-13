@@ -1,11 +1,17 @@
 // ================= CONFIGURATION =================
 // Configurable Render backend URL for production deployment.
 // Can also be overridden at runtime via localStorage or window.API_BASE.
-const DEPLOYED_RENDER_BACKEND = "https://constructpro.onrender.com";
+const DEPLOYED_RENDER_BACKEND = "https://constructpro-cysp.onrender.com";
+
+let storedApi = localStorage.getItem("CONSTRUCTPRO_API_URL");
+if (storedApi && storedApi.includes("constructpro.onrender.com") && !storedApi.includes("constructpro-cysp")) {
+    localStorage.removeItem("CONSTRUCTPRO_API_URL");
+    storedApi = null;
+}
 
 const API_BASE = (
     window.API_BASE ||
-    localStorage.getItem("CONSTRUCTPRO_API_URL") ||
+    storedApi ||
     (window.location.protocol === "file:" ||
      window.location.hostname === "localhost" ||
      window.location.hostname === "127.0.0.1"
@@ -67,12 +73,23 @@ function refreshProjects() {
 
     fetch(`${API_BASE}/projects`)
 
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+            return response.json();
+        })
 
         .then(projects => {
 
+            if (!Array.isArray(projects)) {
+                throw new Error("Invalid response format: expected array");
+            }
+
             const table =
                 document.getElementById("projectTableBody");
+
+            if (!table) return;
 
             table.innerHTML = "";
 
